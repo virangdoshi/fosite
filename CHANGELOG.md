@@ -3,100 +3,109 @@
 
 **Table of Contents**
 
-- [0.0.0 (2021-11-13)](#000-2021-11-13)
+- [0.0.0 (2022-02-23)](#000-2022-02-23)
   - [Bug Fixes](#bug-fixes)
+- [0.42.1 (2022-02-03)](#0421-2022-02-03)
+  - [Code Generation](#code-generation)
+  - [Features](#features)
+- [0.42.0 (2022-01-06)](#0420-2022-01-06)
+  - [Code Generation](#code-generation-1)
+  - [Features](#features-1)
+- [0.41.0 (2021-11-13)](#0410-2021-11-13)
+  - [Bug Fixes](#bug-fixes-1)
+  - [Code Generation](#code-generation-2)
   - [Code Refactoring](#code-refactoring)
   - [Documentation](#documentation)
-  - [Features](#features)
+  - [Features](#features-2)
 - [0.40.2 (2021-05-28)](#0402-2021-05-28)
-  - [Features](#features-1)
+  - [Features](#features-3)
 - [0.40.1 (2021-05-23)](#0401-2021-05-23)
-  - [Bug Fixes](#bug-fixes-1)
-- [0.40.0 (2021-05-21)](#0400-2021-05-21)
   - [Bug Fixes](#bug-fixes-2)
+- [0.40.0 (2021-05-21)](#0400-2021-05-21)
+  - [Bug Fixes](#bug-fixes-3)
   - [Code Refactoring](#code-refactoring-1)
   - [Documentation](#documentation-1)
-  - [Features](#features-2)
+  - [Features](#features-4)
   - [Tests](#tests)
 - [0.39.0 (2021-03-08)](#0390-2021-03-08)
-  - [Features](#features-3)
+  - [Features](#features-5)
 - [0.38.0 (2021-02-23)](#0380-2021-02-23)
   - [Breaking Changes](#breaking-changes)
-    - [Bug Fixes](#bug-fixes-3)
-    - [Features](#features-4)
+    - [Bug Fixes](#bug-fixes-4)
+    - [Features](#features-6)
 - [0.37.0 (2021-02-05)](#0370-2021-02-05)
-  - [Bug Fixes](#bug-fixes-4)
-  - [Features](#features-5)
-- [0.36.1 (2021-01-11)](#0361-2021-01-11)
   - [Bug Fixes](#bug-fixes-5)
+  - [Features](#features-7)
+- [0.36.1 (2021-01-11)](#0361-2021-01-11)
+  - [Bug Fixes](#bug-fixes-6)
   - [Chores](#chores)
   - [Code Refactoring](#code-refactoring-2)
 - [0.36.0 (2020-11-16)](#0360-2020-11-16)
   - [Breaking Changes](#breaking-changes-1)
-    - [Bug Fixes](#bug-fixes-6)
+    - [Bug Fixes](#bug-fixes-7)
     - [Code Refactoring](#code-refactoring-3)
     - [Documentation](#documentation-2)
-    - [Features](#features-6)
+    - [Features](#features-8)
 - [0.35.1 (2020-10-11)](#0351-2020-10-11)
-  - [Bug Fixes](#bug-fixes-7)
-  - [Code Generation](#code-generation)
+  - [Bug Fixes](#bug-fixes-8)
+  - [Code Generation](#code-generation-3)
   - [Documentation](#documentation-3)
-  - [Features](#features-7)
+  - [Features](#features-9)
 - [0.35.0 (2020-10-06)](#0350-2020-10-06)
   - [Breaking Changes](#breaking-changes-2)
-    - [Bug Fixes](#bug-fixes-8)
-    - [Code Generation](#code-generation-1)
+    - [Bug Fixes](#bug-fixes-9)
+    - [Code Generation](#code-generation-4)
 - [0.34.1 (2020-10-02)](#0341-2020-10-02)
-  - [Bug Fixes](#bug-fixes-9)
+  - [Bug Fixes](#bug-fixes-10)
   - [Documentation](#documentation-4)
 - [0.34.0 (2020-09-24)](#0340-2020-09-24)
   - [Breaking Changes](#breaking-changes-3)
-    - [Bug Fixes](#bug-fixes-10)
+    - [Bug Fixes](#bug-fixes-11)
     - [Chores](#chores-1)
-    - [Features](#features-8)
+    - [Features](#features-10)
     - [Unclassified](#unclassified)
 - [0.33.0 (2020-09-16)](#0330-2020-09-16)
   - [Breaking Changes](#breaking-changes-4)
-    - [Features](#features-9)
+    - [Features](#features-11)
 - [0.32.4 (2020-09-15)](#0324-2020-09-15)
-  - [Code Generation](#code-generation-2)
+  - [Code Generation](#code-generation-5)
   - [Code Refactoring](#code-refactoring-4)
   - [Documentation](#documentation-5)
 - [0.32.3 (2020-09-12)](#0323-2020-09-12)
-  - [Bug Fixes](#bug-fixes-11)
+  - [Bug Fixes](#bug-fixes-12)
   - [Code Refactoring](#code-refactoring-5)
   - [Documentation](#documentation-6)
-  - [Features](#features-10)
-- [0.32.2 (2020-06-22)](#0322-2020-06-22)
-  - [Features](#features-11)
-- [0.32.1 (2020-06-05)](#0321-2020-06-05)
-  - [Bug Fixes](#bug-fixes-12)
   - [Features](#features-12)
-- [0.32.0 (2020-05-28)](#0320-2020-05-28)
-  - [Bug Fixes](#bug-fixes-13)
-  - [Documentation](#documentation-7)
+- [0.32.2 (2020-06-22)](#0322-2020-06-22)
   - [Features](#features-13)
-- [0.31.3 (2020-05-09)](#0313-2020-05-09)
-  - [Bug Fixes](#bug-fixes-14)
+- [0.32.1 (2020-06-05)](#0321-2020-06-05)
+  - [Bug Fixes](#bug-fixes-13)
   - [Features](#features-14)
-- [0.31.2 (2020-04-16)](#0312-2020-04-16)
+- [0.32.0 (2020-05-28)](#0320-2020-05-28)
+  - [Bug Fixes](#bug-fixes-14)
+  - [Documentation](#documentation-7)
+  - [Features](#features-15)
+- [0.31.3 (2020-05-09)](#0313-2020-05-09)
   - [Bug Fixes](#bug-fixes-15)
-- [0.31.1 (2020-04-16)](#0311-2020-04-16)
+  - [Features](#features-16)
+- [0.31.2 (2020-04-16)](#0312-2020-04-16)
   - [Bug Fixes](#bug-fixes-16)
+- [0.31.1 (2020-04-16)](#0311-2020-04-16)
+  - [Bug Fixes](#bug-fixes-17)
   - [Documentation](#documentation-8)
 - [0.31.0 (2020-03-29)](#0310-2020-03-29)
   - [Unclassified](#unclassified-1)
 - [0.30.6 (2020-03-26)](#0306-2020-03-26)
-  - [Bug Fixes](#bug-fixes-17)
+  - [Bug Fixes](#bug-fixes-18)
   - [Documentation](#documentation-9)
 - [0.30.5 (2020-03-25)](#0305-2020-03-25)
-  - [Bug Fixes](#bug-fixes-18)
-- [0.30.4 (2020-03-17)](#0304-2020-03-17)
   - [Bug Fixes](#bug-fixes-19)
-- [0.30.3 (2020-03-04)](#0303-2020-03-04)
+- [0.30.4 (2020-03-17)](#0304-2020-03-17)
   - [Bug Fixes](#bug-fixes-20)
+- [0.30.3 (2020-03-04)](#0303-2020-03-04)
+  - [Bug Fixes](#bug-fixes-21)
   - [Documentation](#documentation-10)
-  - [Features](#features-15)
+  - [Features](#features-17)
 - [0.30.2 (2019-11-21)](#0302-2019-11-21)
   - [Unclassified](#unclassified-2)
 - [0.30.1 (2019-09-23)](#0301-2019-09-23)
@@ -355,7 +364,42 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# [0.0.0](https://github.com/ory/fosite/compare/v0.40.2...v0.0.0) (2021-11-13)
+# [0.0.0](https://github.com/ory/fosite/compare/v0.42.1...v0.0.0) (2022-02-23)
+
+### Bug Fixes
+
+- Always rollback ([#638](https://github.com/ory/fosite/issues/638)) ([7edf673](https://github.com/ory/fosite/commit/7edf673f20aece260f9ba677a07086c48835fba8)), closes [#637](https://github.com/ory/fosite/issues/637)
+- Handle token_inactive error for multiple concurrent refresh requests ([#652](https://github.com/ory/fosite/issues/652)) ([7c8f4ae](https://github.com/ory/fosite/commit/7c8f4ae49550c61ff43d1a86adace4ed08c71e3e)):
+
+  See https://github.com/ory/hydra/issues/3004
+
+# [0.42.1](https://github.com/ory/fosite/compare/v0.42.0...v0.42.1) (2022-02-03)
+
+autogen(docs): regenerate and update changelog
+
+### Code Generation
+
+- **docs:** Regenerate and update changelog ([dcc6550](https://github.com/ory/fosite/commit/dcc6550b807980faca740b261790b3be339632c7))
+
+### Features
+
+- Support FormPostHTMLTemplate config for fosite ([#647](https://github.com/ory/fosite/issues/647)) ([570ce3f](https://github.com/ory/fosite/commit/570ce3f6e3bf4e54781a6bfffc2ce777f0ac5194)), closes [#646](https://github.com/ory/fosite/issues/646)
+
+# [0.42.0](https://github.com/ory/fosite/compare/v0.41.0...v0.42.0) (2022-01-06)
+
+autogen(docs): regenerate and update changelog
+
+### Code Generation
+
+- **docs:** Regenerate and update changelog ([cf2c545](https://github.com/ory/fosite/commit/cf2c545540c12bfa5cfbf752bc84c03a8a515ecc))
+
+### Features
+
+- Add new function to TokenRevocationStorage to support refresh token grace-period ([#635](https://github.com/ory/fosite/issues/635)) ([9b40d03](https://github.com/ory/fosite/commit/9b40d036e6494dfe9942b513b8bc4a50c7c9f730))
+
+# [0.41.0](https://github.com/ory/fosite/compare/v0.40.2...v0.41.0) (2021-11-13)
+
+autogen(docs): regenerate and update changelog
 
 ### Bug Fixes
 
@@ -363,6 +407,10 @@
 - Include `typ` in jwt header ([#607](https://github.com/ory/fosite/issues/607)) ([7644a74](https://github.com/ory/fosite/commit/7644a74bd48accb46d8578f6846b3e509dfd4b03)), closes [#606](https://github.com/ory/fosite/issues/606)
 - Make `amr` claim an array to match the OIDC spec ([#625](https://github.com/ory/fosite/issues/625)) ([8a6f66a](https://github.com/ory/fosite/commit/8a6f66ab5d9f74140f4ce94210f09ccb0e27f56d))
 - Resolve nancy warning ([b6cf0a6](https://github.com/ory/fosite/commit/b6cf0a641d1169595ceb3110f76be0788e778521))
+
+### Code Generation
+
+- **docs:** Regenerate and update changelog ([1777ad5](https://github.com/ory/fosite/commit/1777ad52e68b20ce57ed7f2f7d085895c3c157c6))
 
 ### Code Refactoring
 

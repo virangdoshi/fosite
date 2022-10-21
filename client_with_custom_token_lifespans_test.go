@@ -19,30 +19,29 @@
  *
  */
 
-// REMARK: Copied here from fosite/internal to avoid circular dependencies only for test data
-
-package jwt
+package fosite
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/rsa"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func MustRSAKey() *rsa.PrivateKey {
-	// #nosec
-	key, err := rsa.GenerateKey(rand.Reader, 1024)
-	if err != nil {
-		panic(err)
+func TestDefaultClientWithCustomTokenLifespans(t *testing.T) {
+	clc := &DefaultClientWithCustomTokenLifespans{
+		DefaultClient: &DefaultClient{},
 	}
-	return key
-}
 
-func MustECDSAKey() *ecdsa.PrivateKey {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		panic(err)
-	}
-	return key
+	assert.Equal(t, clc.GetTokenLifespans(), (*ClientLifespanConfig)(nil))
+
+	require.Equal(t, time.Minute*42, GetEffectiveLifespan(clc, GrantTypeImplicit, IDToken, time.Minute*42))
+
+	customLifespan := 36 * time.Hour
+	clc.SetTokenLifespans(&ClientLifespanConfig{ImplicitGrantIDTokenLifespan: &customLifespan})
+	assert.NotEqual(t, clc.GetTokenLifespans(), nil)
+
+	require.Equal(t, customLifespan, GetEffectiveLifespan(clc, GrantTypeImplicit, IDToken, time.Minute*42))
+	var _ ClientWithCustomTokenLifespans = clc
 }

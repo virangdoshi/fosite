@@ -23,12 +23,14 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
 	"gopkg.in/square/go-jose.v2"
 
 	"github.com/ory/fosite"
+	"github.com/ory/fosite/internal"
 )
 
 type MemoryUserRelation struct {
@@ -65,6 +67,7 @@ type MemoryStore struct {
 	RefreshTokenRequestIDs map[string]string
 	// Public keys to check signature in auth grant jwt assertion.
 	IssuerPublicKeys map[string]IssuerPublicKeys
+	PARSessions      map[string]fosite.AuthorizeRequester
 
 	clientsMutex                sync.RWMutex
 	authorizeCodesMutex         sync.RWMutex
@@ -77,6 +80,7 @@ type MemoryStore struct {
 	accessTokenRequestIDsMutex  sync.RWMutex
 	refreshTokenRequestIDsMutex sync.RWMutex
 	issuerPublicKeysMutex       sync.RWMutex
+	parSessionsMutex            sync.RWMutex
 }
 
 func NewMemoryStore() *MemoryStore {
@@ -92,6 +96,7 @@ func NewMemoryStore() *MemoryStore {
 		RefreshTokenRequestIDs: make(map[string]string),
 		BlacklistedJTIs:        make(map[string]time.Time),
 		IssuerPublicKeys:       make(map[string]IssuerPublicKeys),
+		PARSessions:            make(map[string]fosite.AuthorizeRequester),
 	}
 }
 
@@ -117,6 +122,18 @@ func NewExampleStore() *MemoryStore {
 				ResponseTypes:  []string{"id_token", "code", "token", "id_token token", "code id_token", "code token", "code id_token token"},
 				GrantTypes:     []string{"implicit", "refresh_token", "authorization_code", "password", "client_credentials"},
 				Scopes:         []string{"fosite", "openid", "photos", "offline"},
+			},
+			"custom-lifespan-client": &fosite.DefaultClientWithCustomTokenLifespans{
+				DefaultClient: &fosite.DefaultClient{
+					ID:             "custom-lifespan-client",
+					Secret:         []byte(`$2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO`),            // = "foobar"
+					RotatedSecrets: [][]byte{[]byte(`$2y$10$X51gLxUQJ.hGw1epgHTE5u0bt64xM0COU7K9iAp.OFg8p2pUd.1zC `)}, // = "foobaz",
+					RedirectURIs:   []string{"http://localhost:3846/callback"},
+					ResponseTypes:  []string{"id_token", "code", "token", "id_token token", "code id_token", "code token", "code id_token token"},
+					GrantTypes:     []string{"implicit", "refresh_token", "authorization_code", "password", "client_credentials"},
+					Scopes:         []string{"fosite", "openid", "photos", "offline"},
+				},
+				TokenLifespans: &internal.TestLifespans,
 			},
 			"encoded:client": &fosite.DefaultClient{
 				ID:             "encoded:client",
@@ -183,6 +200,17 @@ func (s *MemoryStore) GetClient(_ context.Context, id string) (fosite.Client, er
 		return nil, fosite.ErrNotFound
 	}
 	return cl, nil
+}
+
+func (s *MemoryStore) SetTokenLifespans(clientID string, lifespans *fosite.ClientLifespanConfig) error {
+	if client, ok := s.Clients[clientID]; ok {
+		if clc, ok := client.(*fosite.DefaultClientWithCustomTokenLifespans); ok {
+			clc.SetTokenLifespans(lifespans)
+			return nil
+		}
+		return fosite.ErrorToRFC6749Error(errors.New("failed to set token lifespans due to failed client type assertion"))
+	}
+	return fosite.ErrNotFound
 }
 
 func (s *MemoryStore) ClientAssertionJWTValid(_ context.Context, jti string) error {
@@ -453,4 +481,36 @@ func (s *MemoryStore) IsJWTUsed(ctx context.Context, jti string) (bool, error) {
 
 func (s *MemoryStore) MarkJWTUsedForTime(ctx context.Context, jti string, exp time.Time) error {
 	return s.SetClientAssertionJWT(ctx, jti, exp)
+}
+
+// CreatePARSession stores the pushed authorization request context. The requestURI is used to derive the key.
+func (s *MemoryStore) CreatePARSession(ctx context.Context, requestURI string, request fosite.AuthorizeRequester) error {
+	s.parSessionsMutex.Lock()
+	defer s.parSessionsMutex.Unlock()
+
+	s.PARSessions[requestURI] = request
+	return nil
+}
+
+// GetPARSession gets the push authorization request context. If the request is nil, a new request object
+// is created. Otherwise, the same object is updated.
+func (s *MemoryStore) GetPARSession(ctx context.Context, requestURI string) (fosite.AuthorizeRequester, error) {
+	s.parSessionsMutex.RLock()
+	defer s.parSessionsMutex.RUnlock()
+
+	r, ok := s.PARSessions[requestURI]
+	if !ok {
+		return nil, fosite.ErrNotFound
+	}
+
+	return r, nil
+}
+
+// DeletePARSession deletes the context.
+func (s *MemoryStore) DeletePARSession(ctx context.Context, requestURI string) (err error) {
+	s.parSessionsMutex.Lock()
+	defer s.parSessionsMutex.Unlock()
+
+	delete(s.PARSessions, requestURI)
+	return nil
 }

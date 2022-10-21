@@ -32,14 +32,17 @@ import (
 )
 
 type OpenIDConnectImplicitHandler struct {
-	AuthorizeImplicitGrantTypeHandler *oauth2.AuthorizeImplicitGrantTypeHandler
 	*IDTokenHandleHelper
-	ScopeStrategy                 fosite.ScopeStrategy
-	OpenIDConnectRequestValidator *OpenIDConnectRequestValidator
 
-	RS256JWTStrategy *jwt.RS256JWTStrategy
+	AuthorizeImplicitGrantTypeHandler *oauth2.AuthorizeImplicitGrantTypeHandler
+	OpenIDConnectRequestValidator     *OpenIDConnectRequestValidator
+	RS256JWTStrategy                  *jwt.DefaultSigner
 
-	MinParameterEntropy int
+	Config interface {
+		fosite.IDTokenLifespanProvider
+		fosite.MinParameterEntropyProvider
+		fosite.ScopeStrategyProvider
+	}
 }
 
 func (c *OpenIDConnectImplicitHandler) HandleAuthorizeEndpointRequest(ctx context.Context, ar fosite.AuthorizeRequester, resp fosite.AuthorizeResponder) error {
@@ -65,13 +68,13 @@ func (c *OpenIDConnectImplicitHandler) HandleAuthorizeEndpointRequest(ctx contex
 
 	if nonce := ar.GetRequestForm().Get("nonce"); len(nonce) == 0 {
 		return errorsx.WithStack(fosite.ErrInvalidRequest.WithHint("Parameter 'nonce' must be set when using the OpenID Connect Implicit Flow."))
-	} else if len(nonce) < c.MinParameterEntropy {
-		return errorsx.WithStack(fosite.ErrInsufficientEntropy.WithHintf("Parameter 'nonce' is set but does not satisfy the minimum entropy of %d characters.", c.MinParameterEntropy))
+	} else if len(nonce) < c.Config.GetMinParameterEntropy(ctx) {
+		return errorsx.WithStack(fosite.ErrInsufficientEntropy.WithHintf("Parameter 'nonce' is set but does not satisfy the minimum entropy of %d characters.", c.Config.GetMinParameterEntropy(ctx)))
 	}
 
 	client := ar.GetClient()
 	for _, scope := range ar.GetRequestedScopes() {
-		if !c.ScopeStrategy(client.GetScopes(), scope) {
+		if !c.Config.GetScopeStrategy(ctx)(client.GetScopes(), scope) {
 			return errorsx.WithStack(fosite.ErrInvalidScope.WithHintf("The OAuth 2.0 Client is not allowed to request scope '%s'.", scope))
 		}
 	}
@@ -102,7 +105,8 @@ func (c *OpenIDConnectImplicitHandler) HandleAuthorizeEndpointRequest(ctx contex
 		resp.AddParameter("state", ar.GetState())
 	}
 
-	if err := c.IssueImplicitIDToken(ctx, ar, resp); err != nil {
+	idTokenLifespan := fosite.GetEffectiveLifespan(ar.GetClient(), fosite.GrantTypeImplicit, fosite.IDToken, c.Config.GetIDTokenLifespan(ctx))
+	if err := c.IssueImplicitIDToken(ctx, idTokenLifespan, ar, resp); err != nil {
 		return errorsx.WithStack(err)
 	}
 

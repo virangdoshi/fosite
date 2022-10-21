@@ -36,13 +36,16 @@ type OpenIDConnectHybridHandler struct {
 	AuthorizeImplicitGrantTypeHandler *oauth2.AuthorizeImplicitGrantTypeHandler
 	AuthorizeExplicitGrantHandler     *oauth2.AuthorizeExplicitGrantHandler
 	IDTokenHandleHelper               *IDTokenHandleHelper
-	ScopeStrategy                     fosite.ScopeStrategy
 	OpenIDConnectRequestValidator     *OpenIDConnectRequestValidator
 	OpenIDConnectRequestStorage       OpenIDConnectRequestStorage
 
-	Enigma *jwt.RS256JWTStrategy
+	Enigma *jwt.DefaultSigner
 
-	MinParameterEntropy int
+	Config interface {
+		fosite.IDTokenLifespanProvider
+		fosite.MinParameterEntropyProvider
+		fosite.ScopeStrategyProvider
+	}
 }
 
 func (c *OpenIDConnectHybridHandler) HandleAuthorizeEndpointRequest(ctx context.Context, ar fosite.AuthorizeRequester, resp fosite.AuthorizeResponder) error {
@@ -74,8 +77,8 @@ func (c *OpenIDConnectHybridHandler) HandleAuthorizeEndpointRequest(ctx context.
 		return errorsx.WithStack(fosite.ErrInvalidRequest.WithHint("Parameter 'nonce' must be set when requesting an ID Token using the OpenID Connect Hybrid Flow."))
 	}
 
-	if len(nonce) > 0 && len(nonce) < c.MinParameterEntropy {
-		return errorsx.WithStack(fosite.ErrInsufficientEntropy.WithHintf("Parameter 'nonce' is set but does not satisfy the minimum entropy of %d characters.", c.MinParameterEntropy))
+	if len(nonce) > 0 && len(nonce) < c.Config.GetMinParameterEntropy(ctx) {
+		return errorsx.WithStack(fosite.ErrInsufficientEntropy.WithHintf("Parameter 'nonce' is set but does not satisfy the minimum entropy of %d characters.", c.Config.GetMinParameterEntropy(ctx)))
 	}
 
 	sess, ok := ar.GetSession().(Session)
@@ -89,7 +92,7 @@ func (c *OpenIDConnectHybridHandler) HandleAuthorizeEndpointRequest(ctx context.
 
 	client := ar.GetClient()
 	for _, scope := range ar.GetRequestedScopes() {
-		if !c.ScopeStrategy(client.GetScopes(), scope) {
+		if !c.Config.GetScopeStrategy(ctx)(client.GetScopes(), scope) {
 			return errorsx.WithStack(fosite.ErrInvalidScope.WithHintf("The OAuth 2.0 Client is not allowed to request scope '%s'.", scope))
 		}
 	}
@@ -113,8 +116,8 @@ func (c *OpenIDConnectHybridHandler) HandleAuthorizeEndpointRequest(ctx context.
 		// }
 
 		// This is required because we must limit the authorize code lifespan.
-		ar.GetSession().SetExpiresAt(fosite.AuthorizeCode, time.Now().UTC().Add(c.AuthorizeExplicitGrantHandler.AuthCodeLifespan).Round(time.Second))
-		if err := c.AuthorizeExplicitGrantHandler.CoreStorage.CreateAuthorizeCodeSession(ctx, signature, ar.Sanitize(c.AuthorizeExplicitGrantHandler.GetSanitationWhiteList())); err != nil {
+		ar.GetSession().SetExpiresAt(fosite.AuthorizeCode, time.Now().UTC().Add(c.AuthorizeExplicitGrantHandler.Config.GetAuthorizeCodeLifespan(ctx)).Round(time.Second))
+		if err := c.AuthorizeExplicitGrantHandler.CoreStorage.CreateAuthorizeCodeSession(ctx, signature, ar.Sanitize(c.AuthorizeExplicitGrantHandler.GetSanitationWhiteList(ctx))); err != nil {
 			return errorsx.WithStack(fosite.ErrServerError.WithWrap(err).WithDebug(err.Error()))
 		}
 
@@ -149,7 +152,7 @@ func (c *OpenIDConnectHybridHandler) HandleAuthorizeEndpointRequest(ctx context.
 		claims.AccessTokenHash = hash
 	}
 
-	if resp.GetParameters().Get("state") == "" {
+	if _, ok := resp.GetParameters()["state"]; !ok {
 		resp.AddParameter("state", ar.GetState())
 	}
 
@@ -158,7 +161,9 @@ func (c *OpenIDConnectHybridHandler) HandleAuthorizeEndpointRequest(ctx context.
 		return nil
 	}
 
-	if err := c.IDTokenHandleHelper.IssueImplicitIDToken(ctx, ar, resp); err != nil {
+	// Hybrid flow uses implicit flow config for the id token's lifespan
+	idTokenLifespan := fosite.GetEffectiveLifespan(ar.GetClient(), fosite.GrantTypeImplicit, fosite.IDToken, c.Config.GetIDTokenLifespan(ctx))
+	if err := c.IDTokenHandleHelper.IssueImplicitIDToken(ctx, idTokenLifespan, ar, resp); err != nil {
 		return errorsx.WithStack(err)
 	}
 

@@ -22,6 +22,7 @@
 package fosite_test
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -35,19 +36,19 @@ import (
 )
 
 // Test for
-// * https://tools.ietf.org/html/rfc6749#section-4.1.2.1
-//   If the request fails due to a missing, invalid, or mismatching
-//   redirection URI, or if the client identifier is missing or invalid,
-//   the authorization server SHOULD inform the resource owner of the
-//   error and MUST NOT automatically redirect the user-agent to the
-//   invalid redirection URI.
-// * https://tools.ietf.org/html/rfc6749#section-3.1.2
-//   The redirection endpoint URI MUST be an absolute URI as defined by
-//   [RFC3986] Section 4.3.  The endpoint URI MAY include an
-//   "application/x-www-form-urlencoded" formatted (per Appendix B) query
-//   component ([RFC3986] Section 3.4), which MUST be retained when adding
-//   additional query parameters.  The endpoint URI MUST NOT include a
-//   fragment component.
+//   - https://tools.ietf.org/html/rfc6749#section-4.1.2.1
+//     If the request fails due to a missing, invalid, or mismatching
+//     redirection URI, or if the client identifier is missing or invalid,
+//     the authorization server SHOULD inform the resource owner of the
+//     error and MUST NOT automatically redirect the user-agent to the
+//     invalid redirection URI.
+//   - https://tools.ietf.org/html/rfc6749#section-3.1.2
+//     The redirection endpoint URI MUST be an absolute URI as defined by
+//     [RFC3986] Section 4.3.  The endpoint URI MAY include an
+//     "application/x-www-form-urlencoded" formatted (per Appendix B) query
+//     component ([RFC3986] Section 3.4), which MUST be retained when adding
+//     additional query parameters.  The endpoint URI MUST NOT include a
+//     fragment component.
 func TestWriteAuthorizeError(t *testing.T) {
 	var urls = []string{
 		"https://foobar.com/",
@@ -441,8 +442,10 @@ func TestWriteAuthorizeError(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("case=%d", k), func(t *testing.T) {
 			oauth2 := &Fosite{
-				SendDebugMessagesToClients: c.debug,
-				UseLegacyErrorFormat:       !c.doNotUseLegacyFormat,
+				Config: &Config{
+					SendDebugMessagesToClients: c.debug,
+					UseLegacyErrorFormat:       !c.doNotUseLegacyFormat,
+				},
 			}
 
 			ctrl := gomock.NewController(t)
@@ -451,7 +454,7 @@ func TestWriteAuthorizeError(t *testing.T) {
 			req := NewMockAuthorizeRequester(ctrl)
 
 			c.mock(rw, req)
-			oauth2.WriteAuthorizeError(rw, req, c.err)
+			oauth2.WriteAuthorizeError(context.Background(), rw, req, c.err)
 			c.checkHeader(t, k)
 			header = http.Header{}
 		})

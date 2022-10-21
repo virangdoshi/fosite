@@ -35,10 +35,13 @@ import (
 
 func TestJWTStrategy_GenerateIDToken(t *testing.T) {
 	var j = &DefaultStrategy{
-		JWTStrategy: &jwt.RS256JWTStrategy{
-			PrivateKey: key,
+		Signer: &jwt.DefaultSigner{
+			GetPrivateKey: func(_ context.Context) (interface{}, error) {
+				return key, nil
+			}},
+		Config: &fosite.Config{
+			MinParameterEntropy: fosite.MinParameterEntropy,
 		},
-		MinParameterEntropy: fosite.MinParameterEntropy,
 	}
 
 	var req *fosite.AccessRequest
@@ -237,7 +240,7 @@ func TestJWTStrategy_GenerateIDToken(t *testing.T) {
 					},
 					Headers: &jwt.Headers{},
 				})
-				token, _ := j.GenerateIDToken(context.TODO(), fosite.NewAccessRequest(&DefaultSession{
+				token, _ := j.GenerateIDToken(context.TODO(), time.Duration(0), fosite.NewAccessRequest(&DefaultSession{
 					Claims: &jwt.IDTokenClaims{
 						Subject: "peter",
 					},
@@ -258,7 +261,7 @@ func TestJWTStrategy_GenerateIDToken(t *testing.T) {
 					},
 					Headers: &jwt.Headers{},
 				})
-				token, _ := j.GenerateIDToken(context.TODO(), fosite.NewAccessRequest(&DefaultSession{
+				token, _ := j.GenerateIDToken(context.TODO(), time.Duration(0), fosite.NewAccessRequest(&DefaultSession{
 					Claims: &jwt.IDTokenClaims{
 						Subject:   "peter",
 						ExpiresAt: time.Now().Add(-time.Hour).UTC(),
@@ -280,7 +283,7 @@ func TestJWTStrategy_GenerateIDToken(t *testing.T) {
 					},
 					Headers: &jwt.Headers{},
 				})
-				token, _ := j.GenerateIDToken(context.TODO(), fosite.NewAccessRequest(&DefaultSession{
+				token, _ := j.GenerateIDToken(context.TODO(), time.Duration(0), fosite.NewAccessRequest(&DefaultSession{
 					Claims: &jwt.IDTokenClaims{Subject: "alice"}, Headers: &jwt.Headers{},
 				}))
 				req.Form.Set("id_token_hint", token)
@@ -290,7 +293,7 @@ func TestJWTStrategy_GenerateIDToken(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("case=%d/description=%s", k, c.description), func(t *testing.T) {
 			c.setup()
-			token, err := j.GenerateIDToken(context.TODO(), req)
+			token, err := j.GenerateIDToken(context.TODO(), time.Duration(0), req)
 			assert.Equal(t, c.expectErr, err != nil, "%d: %+v", k, err)
 			if !c.expectErr {
 				assert.NotEmpty(t, token)

@@ -22,17 +22,20 @@
 package openid
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ory/fosite"
+	"github.com/ory/fosite/internal"
 	"github.com/ory/fosite/token/jwt"
 )
 
 func TestOpenIDConnectRefreshHandler_HandleTokenEndpointRequest(t *testing.T) {
-	h := &OpenIDConnectRefreshHandler{}
+	h := &OpenIDConnectRefreshHandler{Config: &fosite.Config{}}
 	for _, c := range []struct {
 		areq        *fosite.AccessRequest
 		expectedErr error
@@ -94,16 +97,21 @@ func TestOpenIDConnectRefreshHandler_HandleTokenEndpointRequest(t *testing.T) {
 
 func TestOpenIDConnectRefreshHandler_PopulateTokenEndpointResponse(t *testing.T) {
 	var j = &DefaultStrategy{
-		JWTStrategy: &jwt.RS256JWTStrategy{
-			PrivateKey: key,
+		Signer: &jwt.DefaultSigner{
+			GetPrivateKey: func(ctx context.Context) (interface{}, error) {
+				return key, nil
+			},
 		},
-		MinParameterEntropy: fosite.MinParameterEntropy,
+		Config: &fosite.Config{
+			MinParameterEntropy: fosite.MinParameterEntropy,
+		},
 	}
 
 	h := &OpenIDConnectRefreshHandler{
 		IDTokenHandleHelper: &IDTokenHandleHelper{
 			IDTokenStrategy: j,
 		},
+		Config: &fosite.Config{},
 	}
 	for _, c := range []struct {
 		areq        *fosite.AccessRequest
@@ -169,6 +177,44 @@ func TestOpenIDConnectRefreshHandler_PopulateTokenEndpointResponse(t *testing.T)
 				require.NoError(t, err)
 				claims := decodedIdToken.Claims
 				assert.NotEmpty(t, claims["at_hash"])
+				idTokenExp := internal.ExtractJwtExpClaim(t, idToken)
+				require.NotEmpty(t, idTokenExp)
+				internal.RequireEqualTime(t, time.Now().Add(time.Hour).UTC(), *idTokenExp, time.Minute)
+			},
+		},
+		{
+			description: "should pass",
+			areq: &fosite.AccessRequest{
+				GrantTypes: []string{"refresh_token"},
+				Request: fosite.Request{
+					GrantedScope: []string{"openid"},
+					Client: &fosite.DefaultClientWithCustomTokenLifespans{
+						DefaultClient: &fosite.DefaultClient{
+							GrantTypes: []string{"refresh_token"},
+							//ResponseTypes: []string{"id_token"},
+						},
+						TokenLifespans: &internal.TestLifespans,
+					},
+					Session: &DefaultSession{
+						Subject: "foo",
+						Claims: &jwt.IDTokenClaims{
+							Subject: "foo",
+						},
+					},
+				},
+			},
+			check: func(t *testing.T, aresp *fosite.AccessResponse) {
+				assert.NotEmpty(t, aresp.GetExtra("id_token"))
+				idToken, _ := aresp.GetExtra("id_token").(string)
+				decodedIdToken, err := jwt.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
+					return key.PublicKey, nil
+				})
+				require.NoError(t, err)
+				claims := decodedIdToken.Claims
+				assert.NotEmpty(t, claims["at_hash"])
+				idTokenExp := internal.ExtractJwtExpClaim(t, idToken)
+				require.NotEmpty(t, idTokenExp)
+				internal.RequireEqualTime(t, time.Now().Add(*internal.TestLifespans.RefreshTokenGrantIDTokenLifespan).UTC(), *idTokenExp, time.Minute)
 			},
 		},
 		{

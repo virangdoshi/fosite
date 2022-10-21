@@ -22,12 +22,16 @@
 package integration_test
 
 import (
+	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/ory/fosite/internal"
+	"github.com/ory/fosite/internal/gen"
 
 	"github.com/gorilla/mux"
 	goauth "golang.org/x/oauth2"
@@ -38,7 +42,6 @@ import (
 	"github.com/ory/fosite/handler/oauth2"
 	"github.com/ory/fosite/handler/openid"
 	"github.com/ory/fosite/integration/clients"
-	"github.com/ory/fosite/internal"
 	"github.com/ory/fosite/storage"
 	"github.com/ory/fosite/token/hmac"
 	"github.com/ory/fosite/token/jwt"
@@ -73,6 +76,18 @@ var fositeStore = &storage.MemoryStore{
 			GrantTypes:    []string{"implicit", "refresh_token", "authorization_code", "password", "client_credentials"},
 			Scopes:        []string{"fosite", "offline", "openid"},
 			Audience:      []string{tokenURL},
+		},
+		"custom-lifespan-client": &fosite.DefaultClientWithCustomTokenLifespans{
+			DefaultClient: &fosite.DefaultClient{
+				ID:             "custom-lifespan-client",
+				Secret:         []byte(`$2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO`),            // = "foobar"
+				RotatedSecrets: [][]byte{[]byte(`$2y$10$X51gLxUQJ.hGw1epgHTE5u0bt64xM0COU7K9iAp.OFg8p2pUd.1zC `)}, // = "foobaz",
+				RedirectURIs:   []string{"http://localhost:3846/callback"},
+				ResponseTypes:  []string{"id_token", "code", "token", "id_token token", "code id_token", "code token", "code id_token token"},
+				GrantTypes:     []string{"implicit", "refresh_token", "authorization_code", "password", "client_credentials"},
+				Scopes:         []string{"fosite", "openid", "photos", "offline"},
+			},
+			TokenLifespans: &internal.TestLifespans,
 		},
 		"public-client": &fosite.DefaultClient{
 			ID:            "public-client",
@@ -115,6 +130,7 @@ var fositeStore = &storage.MemoryStore{
 	IDSessions:             map[string]fosite.Requester{},
 	AccessTokenRequestIDs:  map[string]string{},
 	RefreshTokenRequestIDs: map[string]string{},
+	PARSessions:            map[string]fosite.AuthorizeRequester{},
 }
 
 type defaultSession struct {
@@ -176,16 +192,24 @@ func newJWTBearerAppClient(ts *httptest.Server) *clients.JWTBearer {
 
 var hmacStrategy = &oauth2.HMACSHAStrategy{
 	Enigma: &hmac.HMACStrategy{
-		GlobalSecret: []byte("some-super-cool-secret-that-nobody-knows"),
+		Config: &fosite.Config{
+			GlobalSecret: []byte("some-super-cool-secret-that-nobody-knows"),
+		},
 	},
-	AccessTokenLifespan:   accessTokenLifespan,
-	AuthorizeCodeLifespan: authCodeLifespan,
+	Config: &fosite.Config{
+		AccessTokenLifespan:   accessTokenLifespan,
+		AuthorizeCodeLifespan: authCodeLifespan,
+	},
 }
 
+var defaultRSAKey = gen.MustRSAKey()
 var jwtStrategy = &oauth2.DefaultJWTStrategy{
-	JWTStrategy: &jwt.RS256JWTStrategy{
-		PrivateKey: internal.MustRSAKey(),
+	Signer: &jwt.DefaultSigner{
+		GetPrivateKey: func(ctx context.Context) (interface{}, error) {
+			return defaultRSAKey, nil
+		},
 	},
+	Config:          &fosite.Config{},
 	HMACSHAStrategy: hmacStrategy,
 }
 
@@ -197,6 +221,7 @@ func mockServer(t *testing.T, f fosite.OAuth2Provider, session fosite.Session) *
 	router.HandleFunc("/info", tokenInfoHandler(t, f, session))
 	router.HandleFunc("/introspect", tokenIntrospectionHandler(t, f, session))
 	router.HandleFunc("/revoke", tokenRevocationHandler(t, f, session))
+	router.HandleFunc("/par", pushedAuthorizeRequestHandler(t, f, session))
 
 	ts := httptest.NewServer(router)
 	return ts

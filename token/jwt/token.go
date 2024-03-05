@@ -1,3 +1,6 @@
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
+
 package jwt
 
 import (
@@ -6,8 +9,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"gopkg.in/square/go-jose.v2"
-	"gopkg.in/square/go-jose.v2/jwt"
+	"github.com/go-jose/go-jose/v3"
+	"github.com/go-jose/go-jose/v3/jwt"
 
 	"github.com/ory/x/errorsx"
 )
@@ -106,7 +109,9 @@ func (t *Token) SignedString(k interface{}) (rawToken string, err error) {
 
 func unsignedToken(t *Token) (string, error) {
 	t.Header["alg"] = "none"
-	t.Header[string(JWTHeaderType)] = JWTHeaderTypeValue
+	if _, ok := t.Header[string(JWTHeaderType)]; !ok {
+		t.Header[string(JWTHeaderType)] = JWTHeaderTypeValue
+	}
 	hbytes, err := json.Marshal(&t.Header)
 	if err != nil {
 		return "", errorsx.WithStack(err)

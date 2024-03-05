@@ -1,34 +1,17 @@
-/*
- * Copyright © 2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @author		Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @copyright 	2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @license 	Apache-2.0
- *
- */
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
 
 package rfc7523
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/ory/fosite/handler/oauth2"
 
-	"gopkg.in/square/go-jose.v2"
-	"gopkg.in/square/go-jose.v2/jwt"
+	"github.com/go-jose/go-jose/v3"
+	"github.com/go-jose/go-jose/v3/jwt"
 
 	"github.com/ory/fosite"
 	"github.com/ory/x/errorsx"
@@ -246,13 +229,11 @@ func (c *Handler) validateTokenClaims(ctx context.Context, claims jwt.Claims, ke
 		)
 	}
 
-	if !claims.Audience.Contains(c.Config.GetTokenURL(ctx)) {
+	if !audienceMatchesTokenURLs(claims, c.Config.GetTokenURLs(ctx)) {
 		return errorsx.WithStack(fosite.ErrInvalidGrant.
 			WithHintf(
-				"The JWT in \"assertion\" request parameter MUST contain an \"aud\" (audience) claim containing a value \"%s\" that identifies the authorization server as an intended audience.",
-				c.Config.GetTokenURL(ctx),
-			),
-		)
+				`The JWT in "assertion" request parameter MUST contain an "aud" (audience) claim containing a value "%s" that identifies the authorization server as an intended audience.`,
+				strings.Join(c.Config.GetTokenURLs(ctx), `" or "`)))
 	}
 
 	if claims.Expiry == nil {
@@ -315,6 +296,15 @@ func (c *Handler) validateTokenClaims(ctx context.Context, claims jwt.Claims, ke
 	}
 
 	return nil
+}
+
+func audienceMatchesTokenURLs(claims jwt.Claims, tokenURLs []string) bool {
+	for _, tokenURL := range tokenURLs {
+		if claims.Audience.Contains(tokenURL) {
+			return true
+		}
+	}
+	return false
 }
 
 type extendedSession interface {

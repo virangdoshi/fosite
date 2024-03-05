@@ -1,23 +1,5 @@
-/*
- * Copyright © 2017-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @author		Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @Copyright 	2017-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @license 	Apache-2.0
- *
- */
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
 
 package fosite_test
 
@@ -38,10 +20,10 @@ import (
 
 	"github.com/ory/fosite/internal/gen"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	jose "gopkg.in/square/go-jose.v2"
 
 	"github.com/ory/fosite/token/jwt"
 
@@ -133,8 +115,7 @@ func TestAuthenticateClient(t *testing.T) {
 		},
 	}
 
-	var h http.HandlerFunc
-	h = func(w http.ResponseWriter, r *http.Request) {
+	var h http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		require.NoError(t, json.NewEncoder(w).Encode(rsaJwks))
 	}
 	ts := httptest.NewServer(h)
@@ -604,12 +585,12 @@ func TestAuthenticateClientTwice(t *testing.T) {
 		"aud": "token-url",
 	}, key, "kid-foo")}, "client_assertion_type": []string{at}}
 
-	c, err := f.AuthenticateClient(nil, new(http.Request), formValues)
+	c, err := f.AuthenticateClient(context.Background(), new(http.Request), formValues)
 	require.NoError(t, err, "%#v", err)
 	assert.Equal(t, client, c)
 
 	// replay the request and expect it to fail
-	c, err = f.AuthenticateClient(nil, new(http.Request), formValues)
+	c, err = f.AuthenticateClient(context.Background(), new(http.Request), formValues)
 	require.Error(t, err)
 	assert.EqualError(t, err, ErrJTIKnown.Error())
 	assert.Nil(t, c)

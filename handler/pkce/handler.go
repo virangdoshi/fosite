@@ -1,23 +1,5 @@
-/*
- * Copyright © 2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @author		Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @copyright 	2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @license 	Apache-2.0
- *
- */
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
 
 package pkce
 
@@ -65,6 +47,11 @@ func (c *Handler) HandleAuthorizeEndpointRequest(ctx context.Context, ar fosite.
 		return err
 	}
 
+	// We don't need a session if it's not enforced and the PKCE parameters are not provided by the client.
+	if challenge == "" && method == "" {
+		return nil
+	}
+
 	code := resp.GetCode()
 	if len(code) == 0 {
 		return errorsx.WithStack(fosite.ErrServerError.WithDebug("The PKCE handler must be loaded after the authorize code handler."))
@@ -82,24 +69,14 @@ func (c *Handler) HandleAuthorizeEndpointRequest(ctx context.Context, ar fosite.
 }
 
 func (c *Handler) validate(ctx context.Context, challenge, method string, client fosite.Client) error {
-	if challenge == "" {
+	if len(challenge) == 0 {
 		// If the server requires Proof Key for Code Exchange (PKCE) by OAuth
 		// clients and the client does not send the "code_challenge" in
 		// the request, the authorization endpoint MUST return the authorization
 		// error response with the "error" value set to "invalid_request".  The
 		// "error_description" or the response of "error_uri" SHOULD explain the
 		// nature of error, e.g., code challenge required.
-		if c.Config.GetEnforcePKCE(ctx) {
-			return errorsx.WithStack(fosite.ErrInvalidRequest.
-				WithHint("Clients must include a code_challenge when performing the authorize code flow, but it is missing.").
-				WithDebug("The server is configured in a way that enforces PKCE for clients."))
-		}
-		if c.Config.GetEnforcePKCEForPublicClients(ctx) && client.IsPublic() {
-			return errorsx.WithStack(fosite.ErrInvalidRequest.
-				WithHint("This client must include a code_challenge when performing the authorize code flow, but it is missing.").
-				WithDebug("The server is configured in a way that enforces PKCE for this client."))
-		}
-		return nil
+		return c.validateNoPKCE(ctx, client)
 	}
 
 	// If the server supporting PKCE does not support the requested
@@ -126,6 +103,20 @@ func (c *Handler) validate(ctx context.Context, challenge, method string, client
 	return nil
 }
 
+func (c *Handler) validateNoPKCE(ctx context.Context, client fosite.Client) error {
+	if c.Config.GetEnforcePKCE(ctx) {
+		return errorsx.WithStack(fosite.ErrInvalidRequest.
+			WithHint("Clients must include a code_challenge when performing the authorize code flow, but it is missing.").
+			WithDebug("The server is configured in a way that enforces PKCE for clients."))
+	}
+	if c.Config.GetEnforcePKCEForPublicClients(ctx) && client.IsPublic() {
+		return errorsx.WithStack(fosite.ErrInvalidRequest.
+			WithHint("This client must include a code_challenge when performing the authorize code flow, but it is missing.").
+			WithDebug("The server is configured in a way that enforces PKCE for this client."))
+	}
+	return nil
+}
+
 func (c *Handler) HandleTokenEndpointRequest(ctx context.Context, request fosite.AccessRequester) error {
 	if !c.CanHandleTokenEndpointRequest(ctx, request) {
 		return errorsx.WithStack(fosite.ErrUnknownRequest)
@@ -141,8 +132,15 @@ func (c *Handler) HandleTokenEndpointRequest(ctx context.Context, request fosite
 
 	code := request.GetRequestForm().Get("code")
 	signature := c.AuthorizeCodeStrategy.AuthorizeCodeSignature(ctx, code)
-	authorizeRequest, err := c.Storage.GetPKCERequestSession(ctx, signature, request.GetSession())
+	pkceRequest, err := c.Storage.GetPKCERequestSession(ctx, signature, request.GetSession())
+
+	nv := len(verifier)
+
 	if errors.Is(err, fosite.ErrNotFound) {
+		if nv == 0 {
+			return c.validateNoPKCE(ctx, request.GetClient())
+		}
+
 		return errorsx.WithStack(fosite.ErrInvalidGrant.WithHint("Unable to find initial PKCE data tied to this request").WithWrap(err).WithDebug(err.Error()))
 	} else if err != nil {
 		return errorsx.WithStack(fosite.ErrServerError.WithWrap(err).WithDebug(err.Error()))
@@ -152,14 +150,16 @@ func (c *Handler) HandleTokenEndpointRequest(ctx context.Context, request fosite
 		return errorsx.WithStack(fosite.ErrServerError.WithWrap(err).WithDebug(err.Error()))
 	}
 
-	challenge := authorizeRequest.GetRequestForm().Get("code_challenge")
-	method := authorizeRequest.GetRequestForm().Get("code_challenge_method")
-	client := authorizeRequest.GetClient()
+	challenge := pkceRequest.GetRequestForm().Get("code_challenge")
+	method := pkceRequest.GetRequestForm().Get("code_challenge_method")
+	client := pkceRequest.GetClient()
 	if err := c.validate(ctx, challenge, method, client); err != nil {
 		return err
 	}
 
-	if !c.Config.GetEnforcePKCE(ctx) && challenge == "" && verifier == "" {
+	nc := len(challenge)
+
+	if !c.Config.GetEnforcePKCE(ctx) && nc == 0 && nv == 0 {
 		return nil
 	}
 
@@ -170,15 +170,18 @@ func (c *Handler) HandleTokenEndpointRequest(ctx context.Context, request fosite
 	// 	43-octet URL safe string to use as the code verifier.
 
 	// Validation
-	if len(verifier) < 43 {
+	if nv < 43 {
 		return errorsx.WithStack(fosite.ErrInvalidGrant.
 			WithHint("The PKCE code verifier must be at least 43 characters."))
-	} else if len(verifier) > 128 {
+	} else if nv > 128 {
 		return errorsx.WithStack(fosite.ErrInvalidGrant.
 			WithHint("The PKCE code verifier can not be longer than 128 characters."))
 	} else if verifierWrongFormat.MatchString(verifier) {
 		return errorsx.WithStack(fosite.ErrInvalidGrant.
 			WithHint("The PKCE code verifier must only contain [a-Z], [0-9], '-', '.', '_', '~'."))
+	} else if nc == 0 {
+		return errorsx.WithStack(fosite.ErrInvalidGrant.
+			WithHint("The PKCE code verifier was provided but the code challenge was absent from the authorization request."))
 	}
 
 	// Upon receipt of the request at the token endpoint, the server

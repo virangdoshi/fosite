@@ -1,23 +1,5 @@
-/*
- * Copyright © 2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @author		Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @copyright 	2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @license 	Apache-2.0
- *
- */
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
 
 package fosite
 
@@ -25,7 +7,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 	"golang.org/x/text/language"
 )
 
@@ -57,7 +39,7 @@ func NewRequest() *Request {
 
 func (a *Request) GetID() string {
 	if a.ID == "" {
-		a.ID = uuid.New()
+		a.ID = uuid.New().String()
 	}
 	return a.ID
 }
@@ -177,10 +159,12 @@ func (a *Request) Merge(request Requester) {
 	}
 }
 
+var defaultAllowedParameters = []string{"grant_type", "response_type", "scope", "client_id"}
+
 func (a *Request) Sanitize(allowedParameters []string) Requester {
 	b := new(Request)
 	allowed := map[string]bool{}
-	for _, v := range allowedParameters {
+	for _, v := range append(allowedParameters, defaultAllowedParameters...) {
 		allowed[v] = true
 	}
 

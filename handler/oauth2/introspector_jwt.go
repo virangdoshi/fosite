@@ -1,23 +1,5 @@
-/*
- * Copyright © 2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @author		Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @copyright 	2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @license 	Apache-2.0
- *
- */
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
 
 package oauth2
 
@@ -45,20 +27,20 @@ func AccessTokenJWTToRequest(token *jwt.Token) fosite.Requester {
 	requestedAt := claims.IssuedAt
 	requestedAtClaim, ok := mapClaims["rat"]
 	if ok {
-		switch requestedAtClaim.(type) {
+		switch at := requestedAtClaim.(type) {
 		case float64:
-			requestedAt = time.Unix(int64(requestedAtClaim.(float64)), 0).UTC()
+			requestedAt = time.Unix(int64(at), 0).UTC()
 		case int64:
-			requestedAt = time.Unix(requestedAtClaim.(int64), 0).UTC()
+			requestedAt = time.Unix(at, 0).UTC()
 		}
 	}
 
 	clientId := ""
 	clientIdClaim, ok := mapClaims["client_id"]
 	if ok {
-		switch clientIdClaim.(type) {
+		switch cid := clientIdClaim.(type) {
 		case string:
-			clientId = clientIdClaim.(string)
+			clientId = cid
 		}
 	}
 

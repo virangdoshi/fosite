@@ -1,3 +1,6 @@
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
+
 package fosite
 
 import (
@@ -7,6 +10,8 @@ import (
 
 	"github.com/ory/fosite/i18n"
 	"github.com/ory/x/errorsx"
+	"github.com/ory/x/otelx"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -17,7 +22,10 @@ const (
 )
 
 // NewPushedAuthorizeRequest validates the request and produces an AuthorizeRequester object that can be stored
-func (f *Fosite) NewPushedAuthorizeRequest(ctx context.Context, r *http.Request) (AuthorizeRequester, error) {
+func (f *Fosite) NewPushedAuthorizeRequest(ctx context.Context, r *http.Request) (_ AuthorizeRequester, err error) {
+	ctx, span := trace.SpanFromContext(ctx).TracerProvider().Tracer("github.com/ory/fosite").Start(ctx, "Fosite.NewPushedAuthorizeRequest")
+	defer otelx.End(span, &err)
+
 	request := NewAuthorizeRequest()
 	request.Request.Lang = i18n.GetLangFromRequest(f.Config.GetMessageCatalog(ctx), r)
 

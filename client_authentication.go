@@ -1,23 +1,5 @@
-/*
- * Copyright © 2017-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @author		Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @Copyright 	2017-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @license 	Apache-2.0
- *
- */
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
 
 package fosite
 
@@ -29,12 +11,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/ory/x/errorsx"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/pkg/errors"
-	jose "gopkg.in/square/go-jose.v2"
 
 	"github.com/ory/fosite/token/jwt"
 )
@@ -167,7 +150,7 @@ func (f *Fosite) DefaultClientAuthenticationStrategy(ctx context.Context, r *htt
 		var jti string
 		if !claims.VerifyIssuer(clientID, true) {
 			return nil, errorsx.WithStack(ErrInvalidClient.WithHint("Claim 'iss' from 'client_assertion' must match the 'client_id' of the OAuth 2.0 Client."))
-		} else if f.Config.GetTokenURL(ctx) == "" {
+		} else if len(f.Config.GetTokenURLs(ctx)) == 0 {
 			return nil, errorsx.WithStack(ErrMisconfiguration.WithHint("The authorization server's token endpoint URL has not been set."))
 		} else if sub, ok := claims["sub"].(string); !ok || sub != clientID {
 			return nil, errorsx.WithStack(ErrInvalidClient.WithHint("Claim 'sub' from 'client_assertion' must match the 'client_id' of the OAuth 2.0 Client."))
@@ -198,22 +181,10 @@ func (f *Fosite) DefaultClientAuthenticationStrategy(ctx context.Context, r *htt
 			return nil, err
 		}
 
-		if auds, ok := claims["aud"].([]interface{}); !ok {
-			if !claims.VerifyAudience(f.Config.GetTokenURL(ctx), true) {
-				return nil, errorsx.WithStack(ErrInvalidClient.WithHintf("Claim 'audience' from 'client_assertion' must match the authorization server's token endpoint '%s'.", f.Config.GetTokenURL(ctx)))
-			}
-		} else {
-			var found bool
-			for _, aud := range auds {
-				if a, ok := aud.(string); ok && a == f.Config.GetTokenURL(ctx) {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				return nil, errorsx.WithStack(ErrInvalidClient.WithHintf("Claim 'audience' from 'client_assertion' must match the authorization server's token endpoint '%s'.", f.Config.GetTokenURL(ctx)))
-			}
+		if !audienceMatchesTokenURLs(claims, f.Config.GetTokenURLs(ctx)) {
+			return nil, errorsx.WithStack(ErrInvalidClient.WithHintf(
+				"Claim 'audience' from 'client_assertion' must match the authorization server's token endpoint '%s'.",
+				strings.Join(f.Config.GetTokenURLs(ctx), "' or '")))
 		}
 
 		return client, nil
@@ -251,6 +222,27 @@ func (f *Fosite) DefaultClientAuthenticationStrategy(ctx context.Context, r *htt
 	}
 
 	return client, nil
+}
+
+func audienceMatchesTokenURLs(claims jwt.MapClaims, tokenURLs []string) bool {
+	for _, tokenURL := range tokenURLs {
+		if audienceMatchesTokenURL(claims, tokenURL) {
+			return true
+		}
+	}
+	return false
+}
+
+func audienceMatchesTokenURL(claims jwt.MapClaims, tokenURL string) bool {
+	if audiences, ok := claims["aud"].([]interface{}); ok {
+		for _, aud := range audiences {
+			if a, ok := aud.(string); ok && a == tokenURL {
+				return true
+			}
+		}
+		return false
+	}
+	return claims.VerifyAudience(tokenURL, true)
 }
 
 func (f *Fosite) checkClientSecret(ctx context.Context, client Client, clientSecret []byte) error {

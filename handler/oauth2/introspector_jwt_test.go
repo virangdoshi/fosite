@@ -1,23 +1,5 @@
-/*
- * Copyright © 2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @author		Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @copyright 	2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @license 	Apache-2.0
- *
- */
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
 
 package oauth2
 
@@ -64,7 +46,7 @@ func TestIntrospectJWT(t *testing.T) {
 			description: "should fail because jwt is expired",
 			token: func() string {
 				jwt := jwtExpiredCase(fosite.AccessToken)
-				token, _, err := strat.GenerateAccessToken(nil, jwt)
+				token, _, err := strat.GenerateAccessToken(context.Background(), jwt)
 				assert.NoError(t, err)
 				return token
 			},
@@ -75,7 +57,7 @@ func TestIntrospectJWT(t *testing.T) {
 			token: func() string {
 				jwt := jwtValidCase(fosite.AccessToken)
 				jwt.GrantedScope = []string{"foo", "bar"}
-				token, _, err := strat.GenerateAccessToken(nil, jwt)
+				token, _, err := strat.GenerateAccessToken(context.Background(), jwt)
 				assert.NoError(t, err)
 				return token
 			},
@@ -85,7 +67,7 @@ func TestIntrospectJWT(t *testing.T) {
 			description: "should fail because scope was not granted",
 			token: func() string {
 				jwt := jwtValidCase(fosite.AccessToken)
-				token, _, err := strat.GenerateAccessToken(nil, jwt)
+				token, _, err := strat.GenerateAccessToken(context.Background(), jwt)
 				assert.NoError(t, err)
 				return token
 			},
@@ -96,7 +78,7 @@ func TestIntrospectJWT(t *testing.T) {
 			description: "should fail because signature is invalid",
 			token: func() string {
 				jwt := jwtValidCase(fosite.AccessToken)
-				token, _, err := strat.GenerateAccessToken(nil, jwt)
+				token, _, err := strat.GenerateAccessToken(context.Background(), jwt)
 				assert.NoError(t, err)
 				parts := strings.Split(token, ".")
 				require.Len(t, parts, 3, "%s - %v", token, parts)
@@ -112,7 +94,7 @@ func TestIntrospectJWT(t *testing.T) {
 			description: "should pass",
 			token: func() string {
 				jwt := jwtValidCase(fosite.AccessToken)
-				token, _, err := strat.GenerateAccessToken(nil, jwt)
+				token, _, err := strat.GenerateAccessToken(context.Background(), jwt)
 				assert.NoError(t, err)
 				return token
 			},
@@ -124,7 +106,7 @@ func TestIntrospectJWT(t *testing.T) {
 			}
 
 			areq := fosite.NewAccessRequest(nil)
-			_, err := v.IntrospectToken(nil, c.token(), fosite.AccessToken, areq, c.scopes)
+			_, err := v.IntrospectToken(context.Background(), c.token(), fosite.AccessToken, areq, c.scopes)
 
 			if c.expectErr != nil {
 				require.EqualError(t, err, c.expectErr.Error())
@@ -150,12 +132,12 @@ func BenchmarkIntrospectJWT(b *testing.B) {
 	}
 
 	jwt := jwtValidCase(fosite.AccessToken)
-	token, _, err := strat.GenerateAccessToken(nil, jwt)
+	token, _, err := strat.GenerateAccessToken(context.Background(), jwt)
 	assert.NoError(b, err)
 	areq := fosite.NewAccessRequest(nil)
 
 	for n := 0; n < b.N; n++ {
-		_, err = v.IntrospectToken(nil, token, fosite.AccessToken, areq, []string{})
+		_, err = v.IntrospectToken(context.Background(), token, fosite.AccessToken, areq, []string{})
 	}
 
 	assert.NoError(b, err)

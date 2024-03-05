@@ -1,23 +1,5 @@
-/*
- * Copyright © 2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @author		Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @copyright 	2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @license 	Apache-2.0
- *
- */
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
 
 package openid
 
@@ -50,12 +32,6 @@ var hmacStrategy = &oauth2.HMACSHAStrategy{
 			GlobalSecret: []byte("some-super-cool-secret-that-nobody-knows-nobody-knows"),
 		},
 	},
-}
-
-type defaultSession struct {
-	Claims  *jwt.IDTokenClaims
-	Headers *jwt.Headers
-	*fosite.DefaultSession
 }
 
 func makeOpenIDConnectHybridHandler(minParameterEntropy int) OpenIDConnectHybridHandler {
@@ -109,20 +85,6 @@ func makeOpenIDConnectHybridHandler(minParameterEntropy int) OpenIDConnectHybrid
 		OpenIDConnectRequestValidator: NewOpenIDConnectRequestValidator(j.Signer, config),
 		OpenIDConnectRequestStorage:   storage.NewMemoryStore(),
 	}
-}
-
-func (s *defaultSession) IDTokenHeaders() *jwt.Headers {
-	if s.Headers == nil {
-		s.Headers = &jwt.Headers{}
-	}
-	return s.Headers
-}
-
-func (s *defaultSession) IDTokenClaims() *jwt.IDTokenClaims {
-	if s.Claims == nil {
-		s.Claims = &jwt.IDTokenClaims{}
-	}
-	return s.Claims
 }
 
 func TestHybrid_HandleAuthorizeEndpointRequest(t *testing.T) {
@@ -348,13 +310,13 @@ func TestHybrid_HandleAuthorizeEndpointRequest(t *testing.T) {
 				assert.NotEmpty(t, aresp.GetParameters().Get("code"))
 				assert.NotEmpty(t, aresp.GetParameters().Get("access_token"))
 				assert.Equal(t, fosite.ResponseModeFragment, areq.GetResponseMode())
-				assert.Equal(t, time.Now().Add(time.Hour).UTC().Round(time.Second), areq.GetSession().GetExpiresAt(fosite.AuthorizeCode))
+				assert.WithinDuration(t, time.Now().Add(time.Hour).UTC(), areq.GetSession().GetExpiresAt(fosite.AuthorizeCode), 5*time.Second)
 			},
 		},
 	} {
 		t.Run(fmt.Sprintf("case=%d", k), func(t *testing.T) {
 			h := c.setup()
-			err := h.HandleAuthorizeEndpointRequest(nil, areq, aresp)
+			err := h.HandleAuthorizeEndpointRequest(context.Background(), areq, aresp)
 
 			if c.expectErr != nil {
 				require.EqualError(t, err, c.expectErr.Error())

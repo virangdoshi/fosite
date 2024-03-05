@@ -1,27 +1,10 @@
-/*
- * Copyright © 2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @author		Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @copyright 	2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @license 	Apache-2.0
- *
- */
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
 
 package oauth2
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -63,7 +46,7 @@ func TestAuthorizeImplicit_EndpointHandler(t *testing.T) {
 					GrantTypes:    fosite.Arguments{"implicit"},
 					ResponseTypes: fosite.Arguments{"token"},
 				}
-				chgen.EXPECT().GenerateAccessToken(nil, areq).Return("", "", errors.New(""))
+				chgen.EXPECT().GenerateAccessToken(gomock.Any(), areq).Return("", "", errors.New(""))
 			},
 			expectErr: fosite.ErrServerError,
 		},
@@ -98,8 +81,8 @@ func TestAuthorizeImplicit_EndpointHandler(t *testing.T) {
 			description: "should fail because persistence failed",
 			setup: func() {
 				areq.RequestedAudience = fosite.Arguments{"https://www.ory.sh/api"}
-				chgen.EXPECT().GenerateAccessToken(nil, areq).AnyTimes().Return("access.ats", "ats", nil)
-				store.EXPECT().CreateAccessTokenSession(nil, "ats", gomock.Eq(areq.Sanitize([]string{}))).Return(errors.New(""))
+				chgen.EXPECT().GenerateAccessToken(gomock.Any(), areq).AnyTimes().Return("access.ats", "ats", nil)
+				store.EXPECT().CreateAccessTokenSession(gomock.Any(), "ats", gomock.Eq(areq.Sanitize([]string{}))).Return(errors.New(""))
 			},
 			expectErr: fosite.ErrServerError,
 		},
@@ -109,7 +92,7 @@ func TestAuthorizeImplicit_EndpointHandler(t *testing.T) {
 				areq.State = "state"
 				areq.GrantedScope = fosite.Arguments{"scope"}
 
-				store.EXPECT().CreateAccessTokenSession(nil, "ats", gomock.Eq(areq.Sanitize([]string{}))).AnyTimes().Return(nil)
+				store.EXPECT().CreateAccessTokenSession(gomock.Any(), "ats", gomock.Eq(areq.Sanitize([]string{}))).AnyTimes().Return(nil)
 
 				aresp.EXPECT().AddParameter("access_token", "access.ats")
 				aresp.EXPECT().AddParameter("expires_in", gomock.Any())
@@ -122,7 +105,7 @@ func TestAuthorizeImplicit_EndpointHandler(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("case=%d", k), func(t *testing.T) {
 			c.setup()
-			err := h.HandleAuthorizeEndpointRequest(nil, areq, aresp)
+			err := h.HandleAuthorizeEndpointRequest(context.Background(), areq, aresp)
 			if c.expectErr != nil {
 				require.EqualError(t, err, c.expectErr.Error())
 			} else {
@@ -169,16 +152,16 @@ func TestDefaultResponseMode_AuthorizeImplicit_EndpointHandler(t *testing.T) {
 		TokenLifespans: &internal.TestLifespans,
 	}
 
-	store.EXPECT().CreateAccessTokenSession(nil, "ats", gomock.Eq(areq.Sanitize([]string{}))).AnyTimes().Return(nil)
+	store.EXPECT().CreateAccessTokenSession(gomock.Any(), "ats", gomock.Eq(areq.Sanitize([]string{}))).AnyTimes().Return(nil)
 
 	aresp.EXPECT().AddParameter("access_token", "access.ats")
 	aresp.EXPECT().AddParameter("expires_in", gomock.Any())
 	aresp.EXPECT().AddParameter("token_type", "bearer")
 	aresp.EXPECT().AddParameter("state", "state")
 	aresp.EXPECT().AddParameter("scope", "scope")
-	chgen.EXPECT().GenerateAccessToken(nil, areq).AnyTimes().Return("access.ats", "ats", nil)
+	chgen.EXPECT().GenerateAccessToken(gomock.Any(), areq).AnyTimes().Return("access.ats", "ats", nil)
 
-	err := h.HandleAuthorizeEndpointRequest(nil, areq, aresp)
+	err := h.HandleAuthorizeEndpointRequest(context.Background(), areq, aresp)
 	assert.NoError(t, err)
 	assert.Equal(t, fosite.ResponseModeFragment, areq.GetResponseMode())
 

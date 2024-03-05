@@ -1,23 +1,5 @@
-/*
- * Copyright © 2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @author		Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @copyright 	2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @license 	Apache-2.0
- *
- */
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
 
 package fosite_test
 
@@ -91,9 +73,13 @@ func TestSanitizeRequest(t *testing.T) {
 		RequestedScope: Arguments{"asdff"},
 		GrantedScope:   []string{"asdf"},
 		Form: url.Values{
-			"foo": []string{"fasdf"},
-			"bar": []string{"fasdf", "faaaa"},
-			"baz": []string{"fasdf"},
+			"foo":           []string{"fasdf"},
+			"bar":           []string{"fasdf", "faaaa"},
+			"baz":           []string{"fasdf"},
+			"grant_type":    []string{"code"},
+			"response_type": []string{"id_token"},
+			"client_id":     []string{"1234"},
+			"scope":         []string{"read"},
 		},
 		Session: new(DefaultSession),
 	}
@@ -110,6 +96,10 @@ func TestSanitizeRequest(t *testing.T) {
 	assert.Equal(t, "fasdf", a.GetRequestForm().Get("bar"))
 	assert.Equal(t, []string{"fasdf", "faaaa"}, a.GetRequestForm()["bar"])
 	assert.Equal(t, "fasdf", a.GetRequestForm().Get("baz"))
+	assert.Equal(t, "code", a.GetRequestForm().Get("grant_type"))
+	assert.Equal(t, "id_token", a.GetRequestForm().Get("response_type"))
+	assert.Equal(t, "1234", a.GetRequestForm().Get("client_id"))
+	assert.Equal(t, "read", a.GetRequestForm().Get("scope"))
 }
 
 func TestIdentifyRequest(t *testing.T) {

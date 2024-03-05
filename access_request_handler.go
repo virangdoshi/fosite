@@ -1,23 +1,5 @@
-/*
- * Copyright © 2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @author		Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @copyright 	2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @license 	Apache-2.0
- *
- */
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
 
 package fosite
 
@@ -28,6 +10,8 @@ import (
 
 	"github.com/ory/fosite/i18n"
 	"github.com/ory/x/errorsx"
+	"github.com/ory/x/otelx"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/pkg/errors"
 )
@@ -57,7 +41,10 @@ import (
 //     credentials (or assigned other authentication requirements), the
 //     client MUST authenticate with the authorization server as described
 //     in Section 3.2.1.
-func (f *Fosite) NewAccessRequest(ctx context.Context, r *http.Request, session Session) (AccessRequester, error) {
+func (f *Fosite) NewAccessRequest(ctx context.Context, r *http.Request, session Session) (_ AccessRequester, err error) {
+	ctx, span := trace.SpanFromContext(ctx).TracerProvider().Tracer("github.com/ory/fosite").Start(ctx, "Fosite.NewAccessRequest")
+	defer otelx.End(span, &err)
+
 	accessRequest := NewAccessRequest(session)
 	accessRequest.Request.Lang = i18n.GetLangFromRequest(f.Config.GetMessageCatalog(ctx), r)
 

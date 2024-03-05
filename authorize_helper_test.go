@@ -1,30 +1,12 @@
-/*
- * Copyright © 2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @author		Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @copyright 	2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @license 	Apache-2.0
- *
- */
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
 
 package fosite_test
 
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"strings"
 	"testing"
@@ -302,7 +284,7 @@ func TestWriteAuthorizeFormPostResponse(t *testing.T) {
 		redirectURL := "https://localhost:8080/cb"
 		//parameters :=
 		fosite.WriteAuthorizeFormPostResponse(redirectURL, c.parameters, fosite.DefaultFormPostTemplate, &responseBuffer)
-		code, state, _, _, customParams, _, err := internal.ParseFormPostResponse(redirectURL, ioutil.NopCloser(bytes.NewReader(responseBuffer.Bytes())))
+		code, state, _, _, customParams, _, err := internal.ParseFormPostResponse(redirectURL, io.NopCloser(bytes.NewReader(responseBuffer.Bytes())))
 		assert.NoError(t, err, "case %d", d)
 		c.check(code, state, customParams, d)
 
@@ -327,7 +309,7 @@ func TestIsRedirectURISecureStrict(t *testing.T) {
 	} {
 		uu, err := url.Parse(c.u)
 		require.NoError(t, err)
-		assert.Equal(t, !c.err, fosite.IsRedirectURISecureStrict(uu), "case %d", d)
+		assert.Equal(t, !c.err, fosite.IsRedirectURISecureStrict(context.Background(), uu), "case %d", d)
 	}
 }
 

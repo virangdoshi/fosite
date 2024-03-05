@@ -1,27 +1,10 @@
-/*
- * Copyright © 2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @author		Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @copyright 	2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @license 	Apache-2.0
- *
- */
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
 
 package oauth2
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -63,9 +46,9 @@ func TestIntrospectToken(t *testing.T) {
 			setup: func() {
 				httpreq.Header.Set("Authorization", "bearer")
 				chgen.EXPECT().AccessTokenSignature(gomock.Any(), "").Return("")
-				store.EXPECT().GetAccessTokenSession(nil, "", nil).Return(nil, errors.New(""))
+				store.EXPECT().GetAccessTokenSession(gomock.Any(), "", nil).Return(nil, errors.New(""))
 				chgen.EXPECT().RefreshTokenSignature(gomock.Any(), "").Return("")
-				store.EXPECT().GetRefreshTokenSession(nil, "", nil).Return(nil, errors.New(""))
+				store.EXPECT().GetRefreshTokenSession(gomock.Any(), "", nil).Return(nil, errors.New(""))
 			},
 			expectErr: fosite.ErrRequestUnauthorized,
 		},
@@ -74,19 +57,19 @@ func TestIntrospectToken(t *testing.T) {
 			setup: func() {
 				httpreq.Header.Set("Authorization", "bearer 1234")
 				chgen.EXPECT().AccessTokenSignature(gomock.Any(), "1234").AnyTimes().Return("asdf")
-				store.EXPECT().GetAccessTokenSession(nil, "asdf", nil).Return(nil, errors.New(""))
+				store.EXPECT().GetAccessTokenSession(gomock.Any(), "asdf", nil).Return(nil, errors.New(""))
 				chgen.EXPECT().RefreshTokenSignature(gomock.Any(), "1234").Return("asdf")
-				store.EXPECT().GetRefreshTokenSession(nil, "asdf", nil).Return(nil, errors.New(""))
+				store.EXPECT().GetRefreshTokenSession(gomock.Any(), "asdf", nil).Return(nil, errors.New(""))
 			},
 			expectErr: fosite.ErrRequestUnauthorized,
 		},
 		{
 			description: "should fail because validation fails",
 			setup: func() {
-				store.EXPECT().GetAccessTokenSession(nil, "asdf", nil).AnyTimes().Return(areq, nil)
-				chgen.EXPECT().ValidateAccessToken(nil, areq, "1234").Return(errorsx.WithStack(fosite.ErrTokenExpired))
+				store.EXPECT().GetAccessTokenSession(gomock.Any(), "asdf", nil).AnyTimes().Return(areq, nil)
+				chgen.EXPECT().ValidateAccessToken(gomock.Any(), areq, "1234").Return(errorsx.WithStack(fosite.ErrTokenExpired))
 				chgen.EXPECT().RefreshTokenSignature(gomock.Any(), "1234").Return("asdf")
-				store.EXPECT().GetRefreshTokenSession(nil, "asdf", nil).Return(nil, errors.New(""))
+				store.EXPECT().GetRefreshTokenSession(gomock.Any(), "asdf", nil).Return(nil, errors.New(""))
 			},
 			expectErr: fosite.ErrTokenExpired,
 		},
@@ -94,21 +77,21 @@ func TestIntrospectToken(t *testing.T) {
 			description: "should fail because access token invalid",
 			setup: func() {
 				config.DisableRefreshTokenValidation = true
-				chgen.EXPECT().ValidateAccessToken(nil, areq, "1234").Return(errorsx.WithStack(fosite.ErrInvalidTokenFormat))
+				chgen.EXPECT().ValidateAccessToken(gomock.Any(), areq, "1234").Return(errorsx.WithStack(fosite.ErrInvalidTokenFormat))
 			},
 			expectErr: fosite.ErrInvalidTokenFormat,
 		},
 		{
 			description: "should pass",
 			setup: func() {
-				chgen.EXPECT().ValidateAccessToken(nil, areq, "1234").Return(nil)
+				chgen.EXPECT().ValidateAccessToken(gomock.Any(), areq, "1234").Return(nil)
 			},
 			expectTU: fosite.AccessToken,
 		},
 	} {
 		t.Run(fmt.Sprintf("case=%d", k), func(t *testing.T) {
 			c.setup()
-			tu, err := v.IntrospectToken(nil, fosite.AccessTokenFromRequest(httpreq), fosite.AccessToken, areq, []string{})
+			tu, err := v.IntrospectToken(context.Background(), fosite.AccessTokenFromRequest(httpreq), fosite.AccessToken, areq, []string{})
 
 			if c.expectErr != nil {
 				require.EqualError(t, err, c.expectErr.Error())

@@ -1,3 +1,6 @@
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
+
 package fosite
 
 import (
@@ -29,6 +32,12 @@ type RefreshTokenLifespanProvider interface {
 type AccessTokenLifespanProvider interface {
 	// GetAccessTokenLifespan returns the access token lifespan.
 	GetAccessTokenLifespan(ctx context.Context) time.Duration
+}
+
+// VerifiableCredentialsNonceLifespanProvider returns the provider for configuring the access token lifespan.
+type VerifiableCredentialsNonceLifespanProvider interface {
+	// GetNonceLifespan returns the nonce lifespan.
+	GetVerifiableCredentialsNonceLifespan(ctx context.Context) time.Duration
 }
 
 // IDTokenLifespanProvider returns the provider for configuring the ID token lifespan.
@@ -174,13 +183,13 @@ type TokenEntropyProvider interface {
 // GlobalSecretProvider returns the provider for configuring the global secret.
 type GlobalSecretProvider interface {
 	// GetGlobalSecret returns the global secret.
-	GetGlobalSecret(ctx context.Context) []byte
+	GetGlobalSecret(ctx context.Context) ([]byte, error)
 }
 
 // RotatedGlobalSecretsProvider returns the provider for configuring the rotated global secrets.
 type RotatedGlobalSecretsProvider interface {
 	// GetRotatedGlobalSecrets returns the rotated global secrets.
-	GetRotatedGlobalSecrets(ctx context.Context) [][]byte
+	GetRotatedGlobalSecrets(ctx context.Context) ([][]byte, error)
 }
 
 // HMACHashingProvider returns the provider for configuring the hash function.
@@ -238,8 +247,8 @@ type FormPostHTMLTemplateProvider interface {
 }
 
 type TokenURLProvider interface {
-	// GetTokenURL returns the token URL.
-	GetTokenURL(ctx context.Context) string
+	// GetTokenURLs returns the token URL.
+	GetTokenURLs(ctx context.Context) []string
 }
 
 // AuthorizeEndpointHandlersProvider returns the provider for configuring the authorize endpoint handlers.

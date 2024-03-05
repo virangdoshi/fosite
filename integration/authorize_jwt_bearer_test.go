@@ -1,23 +1,5 @@
-/*
- * Copyright © 2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @author		Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @copyright 	2015-2018 Aeneas Rekkas <aeneas+oss@aeneas.io>
- * @license 	Apache-2.0
- *
- */
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
 
 package integration_test
 
@@ -29,10 +11,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/pborman/uuid"
+	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/ory/fosite"
 	"github.com/ory/fosite/compose"
@@ -152,7 +134,7 @@ func (s *authorizeJWTBearerSuite) TestSuccessResponseWithJTIClaim() {
 			Audience: []string{tokenURL},
 			Expiry:   jwt.NewNumericDate(time.Now().Add(time.Hour)),
 			IssuedAt: jwt.NewNumericDate(time.Now()),
-			ID:       uuid.New(),
+			ID:       uuid.New().String(),
 		},
 	}, []string{"fosite"})
 
@@ -170,7 +152,7 @@ func (s *authorizeJWTBearerSuite) TestSuccessResponse() {
 			Expiry:    jwt.NewNumericDate(time.Now().Add(time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now().Add(-time.Hour)),
-			ID:        uuid.New(),
+			ID:        uuid.New().String(),
 		},
 		PrivateClaims: map[string]interface{}{"random": "random"},
 	}, nil)
@@ -279,7 +261,7 @@ func (s *authorizeJWTBearerSuite) TestBadResponseForSecondRequestWithSameJTI() {
 			Audience: []string{tokenURL},
 			Expiry:   jwt.NewNumericDate(time.Now().Add(time.Hour)),
 			IssuedAt: jwt.NewNumericDate(time.Now()),
-			ID:       uuid.New(),
+			ID:       uuid.New().String(),
 		},
 	}
 
@@ -299,7 +281,7 @@ func (s *authorizeJWTBearerSuite) TestSuccessResponseForSecondRequestWithSameJTI
 			Audience: []string{tokenURL},
 			Expiry:   jwt.NewNumericDate(time.Now().Add(time.Second)),
 			IssuedAt: jwt.NewNumericDate(time.Now().Add(-time.Hour)),
-			ID:       uuid.New(),
+			ID:       uuid.New().String(),
 		},
 	}
 

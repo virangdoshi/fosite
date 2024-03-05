@@ -1,3 +1,6 @@
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
+
 package rfc7523
 
 import (
@@ -9,15 +12,16 @@ import (
 	mrand "math/rand"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/ory/fosite/handler/oauth2"
 
+	"github.com/go-jose/go-jose/v3"
+	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/square/go-jose.v2"
-	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/ory/fosite"
 	"github.com/ory/fosite/internal"
@@ -118,7 +122,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestClientIsNotRegisteredForG
 	s.EqualError(err, fosite.ErrUnauthorizedClient.Error(), "expected error, because client is not registered to use this grant type")
 	s.Equal(
 		"The OAuth 2.0 Client is not allowed to use authorization grant \"urn:ietf:params:oauth:grant-type:jwt-bearer\".",
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -134,7 +138,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestRequestWithoutAssertion()
 	s.EqualError(err, fosite.ErrInvalidRequest.Error(), "expected error, because of missing assertion")
 	s.Equal(
 		"The assertion request parameter must be set when using grant_type of 'urn:ietf:params:oauth:grant-type:jwt-bearer'.",
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -151,7 +155,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestRequestWithMalformedAsser
 	s.EqualError(err, fosite.ErrInvalidGrant.Error(), "expected error, because of malformed assertion")
 	s.Equal(
 		"Unable to parse JSON Web Token passed in \"assertion\" request parameter.",
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -171,7 +175,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestRequestAssertionWithoutIs
 	s.EqualError(err, fosite.ErrInvalidGrant.Error(), "expected error, because of missing issuer claim in assertion")
 	s.Equal(
 		"The JWT in \"assertion\" request parameter MUST contain an \"iss\" (issuer) claim.",
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -191,7 +195,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestRequestAssertionWithoutSu
 	s.EqualError(err, fosite.ErrInvalidGrant.Error(), "expected error, because of missing subject claim in assertion")
 	s.Equal(
 		"The JWT in \"assertion\" request parameter MUST contain a \"sub\" (subject) claim.",
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -215,7 +219,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestNoMatchingPublicKeyToChec
 			"No public JWK was registered for issuer \"%s\" and subject \"%s\", and public key is required to check signature of JWT in \"assertion\" request parameter.",
 			cl.Issuer, cl.Subject,
 		),
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -239,7 +243,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestNoMatchingPublicKeysToChe
 			"No public JWK was registered for issuer \"%s\" and subject \"%s\", and public key is required to check signature of JWT in \"assertion\" request parameter.",
 			cl.Issuer, cl.Subject,
 		),
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -259,7 +263,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestWrongPublicKeyToCheckAsse
 	// assert
 	s.True(errors.Is(err, fosite.ErrInvalidGrant))
 	s.EqualError(err, fosite.ErrInvalidGrant.Error(), "expected error, because wrong public key was registered for assertion")
-	s.Equal("Unable to verify the integrity of the 'assertion' value.", err.(*fosite.RFC6749Error).HintField)
+	s.Equal("Unable to verify the integrity of the 'assertion' value.", fosite.ErrorToRFC6749Error(err).HintField)
 }
 
 func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestWrongPublicKeysToCheckAssertionSignature() {
@@ -282,7 +286,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestWrongPublicKeysToCheckAss
 			"No public JWK was registered for issuer \"%s\" and subject \"%s\", and public key is required to check signature of JWT in \"assertion\" request parameter.",
 			cl.Issuer, cl.Subject,
 		),
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -305,7 +309,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestNoAudienceInAssertion() {
 	s.EqualError(err, fosite.ErrInvalidGrant.Error(), "expected error, because of missing audience claim in assertion")
 	s.Equal(
 		"The JWT in \"assertion\" request parameter MUST contain an \"aud\" (audience) claim.",
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -328,10 +332,10 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestNotValidAudienceInAsserti
 	s.EqualError(err, fosite.ErrInvalidGrant.Error(), "expected error, because of invalid audience claim in assertion")
 	s.Equal(
 		fmt.Sprintf(
-			"The JWT in \"assertion\" request parameter MUST contain an \"aud\" (audience) claim containing a value \"%s\" that identifies the authorization server as an intended audience.",
-			s.handler.Config.GetTokenURL(ctx),
+			`The JWT in "assertion" request parameter MUST contain an "aud" (audience) claim containing a value "%s" that identifies the authorization server as an intended audience.`,
+			strings.Join(s.handler.Config.GetTokenURLs(ctx), `" or "`),
 		),
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -354,7 +358,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestNoExpirationInAssertion()
 	s.EqualError(err, fosite.ErrInvalidGrant.Error(), "expected error, because of missing expiration claim in assertion")
 	s.Equal(
 		"The JWT in \"assertion\" request parameter MUST contain an \"exp\" (expiration time) claim.",
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -377,7 +381,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestExpiredAssertion() {
 	s.EqualError(err, fosite.ErrInvalidGrant.Error(), "expected error, because assertion expired")
 	s.Equal(
 		"The JWT in \"assertion\" request parameter expired.",
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -404,7 +408,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestAssertionNotAcceptedBefor
 			"The JWT in \"assertion\" request parameter contains an \"nbf\" (not before) claim, that identifies the time '%s' before which the token MUST NOT be accepted.",
 			nbf.Format(time.RFC3339),
 		),
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -428,7 +432,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestAssertionWithoutRequiredI
 	s.EqualError(err, fosite.ErrInvalidGrant.Error(), "expected error, because of missing iat claim in assertion")
 	s.Equal(
 		"The JWT in \"assertion\" request parameter MUST contain an \"iat\" (issued at) claim.",
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -458,7 +462,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestAssertionWithIssueDateFar
 			cl.Expiry.Time().Format(time.RFC3339),
 			cl.IssuedAt.Time().Format(time.RFC3339),
 		),
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -488,7 +492,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestAssertionWithExpirationDa
 			cl.Expiry.Time().Format(time.RFC3339),
 			cl.IssuedAt.Time().Format(time.RFC3339),
 		),
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -533,7 +537,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestAssertionWithoutRequiredT
 	s.EqualError(err, fosite.ErrInvalidGrant.Error(), "expected error, because of missing jti claim in assertion")
 	s.Equal(
 		"The JWT in \"assertion\" request parameter MUST contain an \"jti\" (JWT ID) claim.",
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -639,7 +643,7 @@ func (s *AuthorizeJWTGrantRequestHandlerTestSuite) TestAssertionWithInvalidScope
 	s.EqualError(err, fosite.ErrInvalidScope.Error(), "expected error, because requested scopes don't match allowed scope for this assertion")
 	s.Equal(
 		"The public key registered for issuer \"trusted_issuer\" and subject \"some_ro\" is not allowed to request scope \"some_scope\".",
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 
@@ -895,7 +899,7 @@ func (s *AuthorizeJWTGrantPopulateTokenEndpointTestSuite) TestClientIsNotRegiste
 	s.EqualError(err, fosite.ErrUnauthorizedClient.Error(), "expected error, because client is not registered to use this grant type")
 	s.Equal(
 		"The OAuth 2.0 Client is not allowed to use authorization grant \"urn:ietf:params:oauth:grant-type:jwt-bearer\".",
-		err.(*fosite.RFC6749Error).HintField,
+		fosite.ErrorToRFC6749Error(err).HintField,
 	)
 }
 

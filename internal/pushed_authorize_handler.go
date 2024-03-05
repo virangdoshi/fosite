@@ -1,12 +1,15 @@
+// Copyright © 2024 Ory Corp
+// SPDX-License-Identifier: Apache-2.0
+
 package internal
 
 import (
-	context "context"
-	reflect "reflect"
+	"context"
+	"reflect"
 
-	gomock "github.com/golang/mock/gomock"
+	"github.com/golang/mock/gomock"
 
-	fosite "github.com/ory/fosite"
+	"github.com/ory/fosite"
 )
 
 // MockPushedAuthorizeEndpointHandler is a mock of PushedAuthorizeEndpointHandler interface
